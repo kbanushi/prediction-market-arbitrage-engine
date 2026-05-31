@@ -1,11 +1,14 @@
 cmake_minimum_required(VERSION 3.23)
 project(PredictionMarketEngine)
 
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include (FetchContent)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
+
+include(FetchContent)
 
 FetchContent_Declare(
     Catch2
@@ -15,19 +18,20 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 
-add_executable(PredictionMarketEngine)
-
-add_executable(arbiter_tests
-    tests/constraint_graph_tests.cpp
+add_executable(PredictionMarketEngine
+    src/main.cpp
     src/strategy.cpp
+    src/order_book.cpp
 )
 
-target_include_directories(arbiter_tests PRIVATE src)
-target_link_libraries(arbiter_tests PRIVATE Catch2::Catch2WithMain)
+target_include_directories(PredictionMarketEngine PRIVATE src)
 
-target_sources(PredictionMarketEngine
-    PRIVATE
-        src/main.cpp
-        src/strategy.cpp
+add_executable(engine_tests
+    tests/constraint_graph_tests.cpp
+    tests/test_order_book.cpp
+    src/strategy.cpp
+    src/order_book.cpp
 )
 
+target_include_directories(engine_tests PRIVATE src)
+target_link_libraries(engine_tests PRIVATE Catch2::Catch2WithMain)
