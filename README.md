@@ -1,6 +1,6 @@
 # Prediction Market Trading Engine
 
-A low-latency, deterministic order book and matching engine designed for high-frequency prediction market arbitrage. Built in C++20, this engine focuses on strict hardware cache-line optimization and zero-allocation hot paths.
+A low-latency, deterministic order book designed for high-frequency prediction market arbitrage. Built in C++20, this engine focuses on strict hardware cache-line optimization and zero-allocation hot paths.
 
 ## Architecture Highlights
 
