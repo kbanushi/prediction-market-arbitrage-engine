@@ -1,18 +1,18 @@
 #pragma once
 
+class OrderBook;
+
+
 struct Market{
     uint32_t id;
-    uint32_t yes_bid;
-    uint32_t yes_ask;
-    uint32_t no_bid;
-    uint32_t no_ask;
     uint32_t fee_rate;
-    uint32_t available_size;
+    OrderBook* book;
+    bool is_active = false;
 };
 
 struct Constraint{
-    uint32_t strong_market_id;
-    uint32_t weak_market_id;
+    uint32_t strong_market_index;
+    uint32_t weak_market_index;
 };
 
 struct Opportunity{

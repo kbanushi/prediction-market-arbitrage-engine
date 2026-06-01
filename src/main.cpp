@@ -1,32 +1,54 @@
 #include <iostream>
-#include <vector>
-#include <unordered_map>
+#include <chrono>
+#include <array>
 #include "strategy.hpp"
-#include "types.hpp"
+#include "order_book.hpp"
 
-int main(){
-    Market btc90 {1, 5200, 5300, 4700, 4600, 700, 100};
-    Market btc100 {2, 6500, 5900, 4200, 4100, 700, 100};
+int main() {
+    // 1. Initialize core components
+    OrderBook strong_book(100);
+    OrderBook weak_book(100);
+    Strategy engine;
 
-    Constraint constraint;
-    std::unordered_map<uint32_t, Market> markets;
-    std::vector<Constraint> constraints;
+    // Cold Path configuration
+    engine.configure_market(0, 9000, 2, &strong_book); // 2 bps fee
+    engine.configure_market(1, 10000, 2, &weak_book);
+    engine.configure_constraint(0, 1); // Strong implies weak
 
-    markets[btc90.id] = btc90;
-    markets[btc100.id] = btc100;
+    // 2. Seed the books ONCE outside the loop (Occupies exactly 2 slots in the pool)
+    strong_book.insert_order(1, 'B', 600, 50); // Bid $0.60
+    weak_book.insert_order(2, 'A', 590, 100);  // Ask $0.59 -> Arbitrage exists!
 
-    constraint.strong_market_id = btc100.id;
-    constraint.weak_market_id = btc90.id;
+    std::array<Opportunity, 10> output_buffer{};
+    const size_t ITERATIONS = 1'000'000;
 
-    constraints.push_back(constraint);
+    std::cout << "Running clean microbenchmark for " << ITERATIONS << " iterations..." << std::endl;
 
-    std::vector<Opportunity> opportunities = evaluate(markets, constraints);
+    auto start = std::chrono::high_resolution_clock::now();
 
-    std::cout << "here" << std::endl;
-    
-    for (const Opportunity& o : opportunities){
-        std::cout << o.buy_market_id << " " << o.sell_market_id << " " << "net edge: " << o.net_edge << std::endl;
+    uint64_t total_opportunities_found = 0;
+    for (size_t i = 0; i < ITERATIONS; ++i) {
+        
+        uint32_t found = engine.evaluate_channels(output_buffer.data(), output_buffer.size());
+        total_opportunities_found += found;
+
+        // HFT Optimization Guard: This inline assembly tells the compiler:
+        // "Treat output_buffer as dirty/modified memory." 
+        // This prevents the compiler from optimizing out the loop during -O3 compilation.
+        asm volatile("" : : "g"(output_buffer.data()) : "memory");
     }
 
-}
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
+    double avg_latency = static_cast<double>(duration) / ITERATIONS;
+    double throughput = (ITERATIONS / (static_cast<double>(duration) / 1'000'000'000.0)) / 1'000'000.0;
+
+    std::cout << "--------- BENCHMARK RESULTS ---------" << std::endl;
+    std::cout << "Total Time Taken: " << duration / 1'000'000.0 << " ms" << std::endl;
+    std::cout << "Average Latency Per Loop: " << avg_latency << " ns" << std::endl;
+    std::cout << "Throughput: " << throughput << " Million updates/sec" << std::endl;
+    std::cout << "Total Opps Processed: " << total_opportunities_found << std::endl;
+
+    return 0;
+}
