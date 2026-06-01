@@ -18,3 +18,6 @@ engine_tests
 
 .vscode/
 .idea/
+
+src/ankerl_unordered_dense.hpp
+src/stl.h

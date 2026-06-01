@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <array>
-#include <unordered_map>
+#include "ankerl_unordered_dense.hpp"
 
 constexpr uint32_t MAX_PRICE_POINTS = 10000;
 
@@ -29,7 +29,7 @@ class OrderBook{
     std::array<PriceLevel, MAX_PRICE_POINTS> bid_levels;
     std::array<PriceLevel, MAX_PRICE_POINTS> ask_levels;
 
-    std::unordered_map<uint32_t, int32_t> id_to_index;
+    ankerl::unordered_dense::map<uint32_t, int32_t> id_to_index;
 
     int32_t best_bid_price = -1;
     int32_t best_ask_price = -1;
@@ -41,8 +41,9 @@ class OrderBook{
     public:
     explicit OrderBook(size_t max_active_orders = 100000);
 
-    void insert_order(uint64_t internal_id, char size, uint32_t price, uint32_t qty);
+    void insert_order(uint64_t internal_id, char size, uint32_t price, uint32_t quantity);
     void cancel_order(uint64_t internal_id, char size, uint32_t price);
+    void modify_order(uint64_t internal_id, char side, uint32_t new_price, uint32_t quantity);
 
     [[nodiscard]] int32_t get_best_bid() const;
     [[nodiscard]] int32_t get_best_ask() const;

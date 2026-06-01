@@ -1,54 +1,66 @@
 #include <iostream>
 #include <chrono>
-#include <array>
+#include <vector>
+#include <numeric>
 #include "strategy.hpp"
 #include "order_book.hpp"
 
+// Fast, deterministic pseudo-random number generator to avoid std::mt19937 overhead
+__attribute__((always_inline)) inline uint32_t fast_rand(uint32_t& state) {
+    state = state * 1664525 + 1013904223;
+    return state;
+}
+
 int main() {
-    // 1. Initialize core components
-    OrderBook strong_book(100);
-    OrderBook weak_book(100);
+    OrderBook strong_book(65536);
+    OrderBook weak_book(65536);
     Strategy engine;
 
-    // Cold Path configuration
-    engine.configure_market(0, 9000, 2, &strong_book); // 2 bps fee
+    engine.configure_market(0, 9000, 2, &strong_book); 
     engine.configure_market(1, 10000, 2, &weak_book);
-    engine.configure_constraint(0, 1); // Strong implies weak
+    engine.configure_constraint(0, 1); 
 
-    // 2. Seed the books ONCE outside the loop (Occupies exactly 2 slots in the pool)
-    strong_book.insert_order(1, 'B', 600, 50); // Bid $0.60
-    weak_book.insert_order(2, 'A', 590, 100);  // Ask $0.59 -> Arbitrage exists!
+    constexpr size_t INITIAL_ORDERS = 20000;
+    constexpr size_t ITERATIONS = 1000000;
+    
+    std::cout << "--- SCALED PRODUCTION BENCHMARK ---" << std::endl;
+    std::cout << "Pre-populating books with " << INITIAL_ORDERS << " unique active orders..." << std::endl;
+
+    for (uint32_t i = 1; i <= INITIAL_ORDERS; ++i) {
+        char side = (i % 2 == 0) ? 'B' : 'A';
+        int32_t base_px = (side == 'B') ? 590 : 610;
+        strong_book.insert_order(i, side, base_px, 10);
+        weak_book.insert_order(i + INITIAL_ORDERS, side, base_px, 10);
+    }
 
     std::array<Opportunity, 10> output_buffer{};
-    const size_t ITERATIONS = 1'000'000;
+    uint32_t rand_state = 42;
 
-    std::cout << "Running clean microbenchmark for " << ITERATIONS << " iterations..." << std::endl;
+    std::cout << "Executing " << ITERATIONS << " random hot-path updates across state space..." << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    uint64_t total_opportunities_found = 0;
     for (size_t i = 0; i < ITERATIONS; ++i) {
-        
-        uint32_t found = engine.evaluate_channels(output_buffer.data(), output_buffer.size());
-        total_opportunities_found += found;
+        uint32_t target_id = (fast_rand(rand_state) % INITIAL_ORDERS) + 1;
+        int32_t dynamic_px = 600 + (fast_rand(rand_state) % 20) - 10;
+        uint32_t dynamic_sz = 5 + (fast_rand(rand_state) % 95);
+        char side = (target_id % 2 == 0) ? 'B' : 'A';
 
-        // HFT Optimization Guard: This inline assembly tells the compiler:
-        // "Treat output_buffer as dirty/modified memory." 
-        // This prevents the compiler from optimizing out the loop during -O3 compilation.
-        asm volatile("" : : "g"(output_buffer.data()) : "memory");
+        strong_book.modify_order(target_id, side, dynamic_px, dynamic_sz);
+
+        engine.evaluate_channels(output_buffer.data(), output_buffer.size());
     }
 
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    
+    double total_time_ms = std::chrono::duration<double, std::milli>(end - start).count();
+    double avg_latency_ns = (total_time_ms * 1000000.0) / ITERATIONS;
+    double throughput = ITERATIONS / (total_time_ms / 1000.0) / 1000000.0;
 
-    double avg_latency = static_cast<double>(duration) / ITERATIONS;
-    double throughput = (ITERATIONS / (static_cast<double>(duration) / 1'000'000'000.0)) / 1'000'000.0;
-
-    std::cout << "--------- BENCHMARK RESULTS ---------" << std::endl;
-    std::cout << "Total Time Taken: " << duration / 1'000'000.0 << " ms" << std::endl;
-    std::cout << "Average Latency Per Loop: " << avg_latency << " ns" << std::endl;
+    std::cout << "\n--------- BENCHMARK RESULTS ---------" << std::endl;
+    std::cout << "Total Time Taken: " << total_time_ms << " ms" << std::endl;
+    std::cout << "Average Latency Per Loop: " << avg_latency_ns << " ns" << std::endl;
     std::cout << "Throughput: " << throughput << " Million updates/sec" << std::endl;
-    std::cout << "Total Opps Processed: " << total_opportunities_found << std::endl;
 
     return 0;
 }

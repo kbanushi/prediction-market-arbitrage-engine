@@ -135,6 +135,24 @@ void OrderBook::cancel_order(uint64_t internal_id, char side, uint32_t price){
     }
 }
 
+void OrderBook::modify_order(uint64_t internal_id, char side, uint32_t new_price, uint32_t new_quantity){
+    auto it = id_to_index.find(internal_id);
+    if (it == id_to_index.end()) return;
+
+    int32_t target_index = it->second;
+    uint32_t old_price = memory_pool[target_index].price;
+
+    if (old_price == new_price){
+        PriceLevel& level = (side == 'B') ? bid_levels[old_price] : ask_levels[old_price];
+        level.total_volume = level.total_volume - memory_pool[target_index].quantity + new_quantity;
+        memory_pool[target_index].quantity = new_quantity;
+    }
+    else{
+        cancel_order(internal_id, side, old_price);
+        insert_order(internal_id, side, new_price, new_quantity);
+    }
+}
+
 int32_t OrderBook::get_best_bid() const {
     return best_bid_price;
 }
