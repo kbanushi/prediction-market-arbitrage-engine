@@ -23,8 +23,8 @@ int main() {
     constexpr size_t INITIAL_ORDERS = 20000;
     constexpr size_t ITERATIONS = 1000000;
     
-    std::cout << "--- SCALED PRODUCTION BENCHMARK ---" << std::endl;
-    std::cout << "Pre-populating books with " << INITIAL_ORDERS << " unique active orders..." << std::endl;
+    std::cout << "--- HOT-PATH MICROBENCHMARK ---\n";
+    std::cout << "Pre-populating book with " << INITIAL_ORDERS << " unique active orders...\n";
 
     for (uint32_t i = 1; i <= INITIAL_ORDERS; ++i) {
         char side = (i % 2 == 0) ? 'B' : 'A';
@@ -36,7 +36,7 @@ int main() {
     std::array<Opportunity, 10> output_buffer{};
     uint32_t rand_state = 42;
 
-    std::cout << "Executing " << ITERATIONS << " random hot-path updates across state space..." << std::endl;
+    std::cout << "Executing " << ITERATIONS << " random hot-path updates across state space...\n";
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -57,7 +57,7 @@ int main() {
     double avg_latency_ns = (total_time_ms * 1000000.0) / ITERATIONS;
     double throughput = ITERATIONS / (total_time_ms / 1000.0) / 1000000.0;
 
-    std::cout << "\n--------- BENCHMARK RESULTS ---------" << std::endl;
+    std::cout << "--- HOT-PATH MICROBENCHMARK ---\n";
     std::cout << "Total Time Taken: " << total_time_ms << " ms" << std::endl;
     std::cout << "Average Latency Per Loop: " << avg_latency_ns << " ns" << std::endl;
     std::cout << "Throughput: " << throughput << " Million updates/sec" << std::endl;
