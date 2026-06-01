@@ -10,10 +10,10 @@ A low-latency, deterministic order book and matching engine designed for high-fr
 
 ## Current Status and Roadmap 
 This project is in active development. The core memory architecture and state-space execution paths are complete. Current development is focused on the inter-thread concurrency layer.
-[x] Phase 1: Core Engine: O(1) Order Book, Intrusive Memory Pool, Cache-Aligned Maps.
-[ ] Phase 2: Concurrency Barrier: Lock-free, atomic Single-Producer Single-Consumer (SPSC) ring buffers for inter-thread communication.
-[ ] Phase 3: Network I/O: Asynchronous epoll/kqueue event loop for non-blocking market data ingestion.
-[ ] Phase 4: Quantitative Execution: Real-time cross-market probability arbitrage logic.
+- [x] Phase 1: Core Engine: O(1) Order Book, Intrusive Memory Pool, Cache-Aligned Maps.
+- [ ] Phase 2: Concurrency Barrier: Lock-free, atomic Single-Producer Single-Consumer (SPSC) ring buffers for inter-thread communication.
+- [ ] Phase 3: Network I/O: Asynchronous epoll/kqueue event loop for non-blocking market data ingestion.
+- [ ] Phase 4: Quantitative Execution: Real-time cross-market probability arbitrage logic.
 
 ## Hot-Path Microbenchmarks
 
