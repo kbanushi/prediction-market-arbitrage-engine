@@ -51,6 +51,7 @@ void OrderBook::insert_order(uint64_t internal_id, char side, uint32_t price, ui
     order.internal_id = internal_id;
     order.price = price;
     order.quantity = quantity;
+    order.side = side;
 
     id_to_index[internal_id] = allocated_index;
 
@@ -98,12 +99,14 @@ void OrderBook::remove_from_list(int32_t index, PriceLevel& level){
     }
 }
 
-void OrderBook::cancel_order(uint64_t internal_id, char side, uint32_t price){
+void OrderBook::cancel_order(uint64_t internal_id){
     auto it = id_to_index.find(internal_id);
     if (it == id_to_index.end()) return; //Order doesn't exist. Might've been filled in market.
 
     int32_t target_index = it->second;
     Order& target_order = memory_pool[target_index];
+    uint32_t price = target_order.price;
+    char side = target_order.side;
 
     PriceLevel& level = (side == 'B') ? bid_levels[price] : ask_levels[price];
     level.total_volume -= target_order.quantity;
@@ -135,12 +138,13 @@ void OrderBook::cancel_order(uint64_t internal_id, char side, uint32_t price){
     }
 }
 
-void OrderBook::modify_order(uint64_t internal_id, char side, uint32_t new_price, uint32_t new_quantity){
+void OrderBook::modify_order(uint64_t internal_id, uint32_t new_price, uint32_t new_quantity){
     auto it = id_to_index.find(internal_id);
     if (it == id_to_index.end()) return;
 
     int32_t target_index = it->second;
     uint32_t old_price = memory_pool[target_index].price;
+    char side = memory_pool[target_index].side;
 
     if (old_price == new_price){
         PriceLevel& level = (side == 'B') ? bid_levels[old_price] : ask_levels[old_price];
@@ -148,7 +152,7 @@ void OrderBook::modify_order(uint64_t internal_id, char side, uint32_t new_price
         memory_pool[target_index].quantity = new_quantity;
     }
     else{
-        cancel_order(internal_id, side, old_price);
+        cancel_order(internal_id);
         insert_order(internal_id, side, new_price, new_quantity);
     }
 }

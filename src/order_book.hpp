@@ -7,12 +7,15 @@
 constexpr uint32_t MAX_PRICE_POINTS = 10000;
 
 struct Order{
+    
     uint64_t internal_id;
     uint32_t price;
     uint32_t quantity;
 
     int32_t prev_index = -1;
     int32_t next_index = -1;
+
+    char side;
 };
 
 struct PriceLevel{
@@ -42,8 +45,8 @@ class OrderBook{
     explicit OrderBook(size_t max_active_orders = 100000);
 
     void insert_order(uint64_t internal_id, char size, uint32_t price, uint32_t quantity);
-    void cancel_order(uint64_t internal_id, char size, uint32_t price);
-    void modify_order(uint64_t internal_id, char side, uint32_t new_price, uint32_t quantity);
+    void cancel_order(uint64_t internal_id);
+    void modify_order(uint64_t internal_id, uint32_t new_price, uint32_t new_quantity);
 
     [[nodiscard]] int32_t get_best_bid() const;
     [[nodiscard]] int32_t get_best_ask() const;

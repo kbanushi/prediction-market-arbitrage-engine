@@ -44,9 +44,8 @@ int main() {
         uint32_t target_id = (fast_rand(rand_state) % INITIAL_ORDERS) + 1;
         int32_t dynamic_px = 600 + (fast_rand(rand_state) % 20) - 10;
         uint32_t dynamic_sz = 5 + (fast_rand(rand_state) % 95);
-        char side = (target_id % 2 == 0) ? 'B' : 'A';
 
-        strong_book.modify_order(target_id, side, dynamic_px, dynamic_sz);
+        strong_book.modify_order(target_id, dynamic_px, dynamic_sz);
 
         engine.evaluate_channels(output_buffer.data(), output_buffer.size());
     }

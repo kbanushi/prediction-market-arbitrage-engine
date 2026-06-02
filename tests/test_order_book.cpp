@@ -24,7 +24,7 @@ TEST_CASE("Memory Pool Constraints and Recycling", "[memory]") {
         book.insert_order(3, 'B', 99, 10);
 
         // Cancel order 2, freeing exactly one slot back to the free_head
-        book.cancel_order(2, 'A', 105);
+        book.cancel_order(2);
 
         // We should now be able to insert exactly one more order
         REQUIRE_NOTHROW(book.insert_order(4, 'B', 98, 15));
@@ -60,15 +60,15 @@ TEST_CASE("Inside Market (Best Bid/Ask) Tracking", "[pricing]") {
         REQUIRE(book.get_best_bid() == 5200);
 
         // Wipe out the top of the book
-        book.cancel_order(3, 'B', 5200);
+        book.cancel_order(3);
         REQUIRE(book.get_best_bid() == 5100);
 
         // Wipe out the middle (should not affect best bid)
-        book.cancel_order(1, 'B', 5000);
+        book.cancel_order(1);
         REQUIRE(book.get_best_bid() == 5100);
 
         // Wipe out the final bid (should reset to -1)
-        book.cancel_order(2, 'B', 5100);
+        book.cancel_order(2);
         REQUIRE(book.get_best_bid() == -1);
     }
 }
@@ -86,7 +86,7 @@ TEST_CASE("Queue Volume and Mid-List Splicing", "[queue]") {
         REQUIRE(book.get_volume_at_price('B', 5000) == 40);
 
         // Cancel the HEAD of the queue
-        book.cancel_order(1, 'B', 5000);
+        book.cancel_order(1);
         
         // Volume should update, and the price level should survive
         REQUIRE(book.get_volume_at_price('B', 5000) == 25);
@@ -111,10 +111,10 @@ TEST_CASE("Array Bounds and Silent Errors", "[safety]") {
         book.insert_order(1, 'B', 5000, 10);
         
         // Canceling an order that never existed should not segfault
-        REQUIRE_NOTHROW(book.cancel_order(999, 'B', 5000));
+        REQUIRE_NOTHROW(book.cancel_order(999));
         
         // Canceling an order that was ALREADY canceled should not segfault
-        book.cancel_order(1, 'B', 5000);
-        REQUIRE_NOTHROW(book.cancel_order(1, 'B', 5000));
+        book.cancel_order(1);
+        REQUIRE_NOTHROW(book.cancel_order(1));
     }
 }
