@@ -3,10 +3,9 @@
 class OrderBook;
 
 struct Market{
-    OrderBook* book;
+    OrderBook* book = nullptr;
     uint32_t id;
     uint32_t fee_rate;
-    bool is_active = false;
 };
 
 struct Constraint{

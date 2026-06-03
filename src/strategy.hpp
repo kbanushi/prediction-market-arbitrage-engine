@@ -22,7 +22,7 @@ public:
         if (internal_index >= MAX_STRATEGY_MARKETS)
             throw std::runtime_error("Fatal Configuration: Max strategies exceeded.");
         
-        market_pool[internal_index] = Market{external_id, fee_rate, book, true};
+        market_pool[internal_index] = Market{book, external_id, fee_rate,};
     }
 
     void configure_constraint(uint32_t strong_index, uint32_t weak_index){
