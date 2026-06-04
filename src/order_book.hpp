@@ -5,6 +5,7 @@
 #include "ankerl_unordered_dense.hpp"
 #include "market_event.hpp"
 
+
 constexpr uint32_t MAX_PRICE_POINTS = 10000;
 
 struct Order{
@@ -16,7 +17,7 @@ struct Order{
     int32_t prev_index = -1;
     int32_t next_index = -1;
 
-    char side;
+    Side side;
 };
 
 struct PriceLevel{
@@ -45,12 +46,12 @@ class OrderBook{
     public:
     explicit OrderBook(size_t max_active_orders = 100000);
 
-    void insert_order(uint64_t internal_id, char size, uint32_t price, uint32_t quantity);
+    void insert_order(uint64_t internal_id, Side side, uint32_t price, uint32_t quantity);
     void cancel_order(uint64_t internal_id);
     void modify_order(uint64_t internal_id, uint32_t new_price, uint32_t new_quantity);
     bool apply(const MarketEvent& event);
 
     [[nodiscard]] int32_t get_best_bid() const;
     [[nodiscard]] int32_t get_best_ask() const;
-    [[nodiscard]] uint32_t get_volume_at_price(char side, uint32_t price) const;
+    [[nodiscard]] uint32_t get_volume_at_price(Side side, uint32_t price) const;
 };

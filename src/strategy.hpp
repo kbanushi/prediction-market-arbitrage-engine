@@ -64,8 +64,8 @@ public:
                 opportunity.net_edge = net_edge;
                 opportunity.estimated_fees = fees;
 
-                uint32_t strong_size = strong_market.book->get_volume_at_price('B', static_cast<uint32_t>(strong_bid));
-                uint32_t weak_size = weak_market.book->get_volume_at_price('A', static_cast<uint32_t>(weak_ask));
+                uint32_t strong_size = strong_market.book->get_volume_at_price(Side::Bid, static_cast<uint32_t>(strong_bid));
+                uint32_t weak_size = weak_market.book->get_volume_at_price(Side::Ask, static_cast<uint32_t>(weak_ask));
                 opportunity.max_size = std::min(strong_size, weak_size);
 
                 opportunities_found++;

@@ -55,5 +55,5 @@ TEST_CASE("Event pipeline applies normalized market events through SPSC queue", 
 
     REQUIRE(book.get_best_bid() == 5050);
     REQUIRE(book.get_best_ask() == -1);
-    REQUIRE(book.get_volume_at_price('B', 5050) == 15);
+    REQUIRE(book.get_volume_at_price(Side::Bid, 5050) == 15);
 }

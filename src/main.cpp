@@ -27,8 +27,8 @@ int main() {
     std::cout << "Pre-populating book with " << INITIAL_ORDERS << " unique active orders...\n";
 
     for (uint32_t i = 1; i <= INITIAL_ORDERS; ++i) {
-        char side = (i % 2 == 0) ? 'B' : 'A';
-        int32_t base_px = (side == 'B') ? 590 : 610;
+        Side side = (i % 2 == 0) ? Side::Bid : Side::Ask;
+        int32_t base_px = (side == Side::Bid) ? 590 : 610;
         strong_book.insert_order(i, side, base_px, 10);
         weak_book.insert_order(i + INITIAL_ORDERS, side, base_px, 10);
     }

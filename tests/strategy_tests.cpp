@@ -8,8 +8,8 @@ TEST_CASE("Strategy validates implication arbitrage and calculates max_size", "[
     OrderBook book_100k;
 
 
-    book_90k.insert_order(1, 'A', 500, 100);
-    book_100k.insert_order(2, 'B', 600, 40);
+    book_90k.insert_order(1, Side::Ask, 500, 100);
+    book_100k.insert_order(2, Side::Bid, 600, 40);
 
     Strategy engine;
     
@@ -36,8 +36,8 @@ TEST_CASE("Strategy validates implication arbitrage and calculates max_size", "[
 
 TEST_CASE("Strategy respects output buffer boundaries", "[strategy]") {
     OrderBook book_90k, book_100k;
-    book_90k.insert_order(1, 'A', 500, 100);
-    book_100k.insert_order(2, 'B', 600, 40);
+    book_90k.insert_order(1, Side::Ask, 500, 100);
+    book_100k.insert_order(2, Side::Bid, 600, 40);
 
     Strategy engine;
     engine.configure_market(0, 9000, 0, &book_90k);

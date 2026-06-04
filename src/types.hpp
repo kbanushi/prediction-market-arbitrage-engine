@@ -2,6 +2,11 @@
 
 class OrderBook;
 
+enum class Side : char {
+    Bid = 'B',
+    Ask = 'A'
+};
+
 struct Market{
     OrderBook* book = nullptr;
     uint32_t id;

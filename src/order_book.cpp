@@ -40,7 +40,7 @@ void OrderBook::free_order(int32_t target_index){
     free_head = target_index;
 }
 
-void OrderBook::insert_order(uint64_t internal_id, char side, uint32_t price, uint32_t quantity){
+void OrderBook::insert_order(uint64_t internal_id, Side side, uint32_t price, uint32_t quantity){
     if (price >= MAX_PRICE_POINTS){
         throw std::runtime_error("Fatal: Price greater than max price points");
     }
@@ -55,7 +55,7 @@ void OrderBook::insert_order(uint64_t internal_id, char side, uint32_t price, ui
 
     id_to_index[internal_id] = allocated_index;
 
-    PriceLevel& level = (side == 'B') ? bid_levels[price] : ask_levels[price];
+    PriceLevel& level = (side == Side::Bid) ? bid_levels[price] : ask_levels[price];
     level.total_volume += quantity;
 
     if (level.head_index == -1){ //First order on this price level
@@ -70,7 +70,7 @@ void OrderBook::insert_order(uint64_t internal_id, char side, uint32_t price, ui
         level.tail_index = allocated_index;
     }
 
-    if (side == 'B'){
+    if (side == Side::Bid){
         if (best_bid_price == -1 || price > static_cast<uint32_t>(best_bid_price)){
             best_bid_price = static_cast<int32_t>(price);
         }
@@ -106,9 +106,9 @@ void OrderBook::cancel_order(uint64_t internal_id){
     int32_t target_index = it->second;
     Order& target_order = memory_pool[target_index];
     uint32_t price = target_order.price;
-    char side = target_order.side;
+    Side side = target_order.side;
 
-    PriceLevel& level = (side == 'B') ? bid_levels[price] : ask_levels[price];
+    PriceLevel& level = (side == Side::Bid) ? bid_levels[price] : ask_levels[price];
     level.total_volume -= target_order.quantity;
 
     remove_from_list(target_index, level);
@@ -117,7 +117,7 @@ void OrderBook::cancel_order(uint64_t internal_id){
     free_order(target_index);
 
     if (level.head_index == -1){
-        if (side == 'B' && static_cast<int32_t>(price) == best_bid_price){
+        if (side == Side::Bid && static_cast<int32_t>(price) == best_bid_price){
             best_bid_price = -1;
             for (int32_t p = static_cast<int32_t>(price) - 1; p >= 0; p--){
                 if (bid_levels[p].head_index != -1){
@@ -126,7 +126,7 @@ void OrderBook::cancel_order(uint64_t internal_id){
                 }
             }
         }
-        else if (side != 'B' && static_cast<int32_t>(price) == best_ask_price){
+        else if (side == Side::Ask && static_cast<int32_t>(price) == best_ask_price){
             best_ask_price = -1;
             for (int32_t p = static_cast<int32_t>(price) + 1; p < static_cast<int32_t>(MAX_PRICE_POINTS); p++){
                 if (ask_levels[p].head_index != -1){
@@ -144,10 +144,10 @@ void OrderBook::modify_order(uint64_t internal_id, uint32_t new_price, uint32_t 
 
     int32_t target_index = it->second;
     uint32_t old_price = memory_pool[target_index].price;
-    char side = memory_pool[target_index].side;
+    Side side = memory_pool[target_index].side;
 
     if (old_price == new_price){
-        PriceLevel& level = (side == 'B') ? bid_levels[old_price] : ask_levels[old_price];
+        PriceLevel& level = (side == Side::Bid) ? bid_levels[old_price] : ask_levels[old_price];
         level.total_volume = level.total_volume - memory_pool[target_index].quantity + new_quantity;
         memory_pool[target_index].quantity = new_quantity;
     }
@@ -160,7 +160,7 @@ void OrderBook::modify_order(uint64_t internal_id, uint32_t new_price, uint32_t 
 bool OrderBook::apply(const MarketEvent& event){
     switch (event.type){
         case EventType::Add:
-            insert_order(event.order_id, static_cast<char>(event.side), event.price, event.quantity);
+            insert_order(event.order_id, event.side, event.price, event.quantity);
             return true;
         case EventType::Cancel:
             cancel_order(event.order_id);
@@ -181,6 +181,6 @@ int32_t OrderBook::get_best_ask() const {
     return best_ask_price;
 }
 
-uint32_t OrderBook::get_volume_at_price(char side, uint32_t price) const {
-    return (side == 'B') ? bid_levels[price].total_volume : ask_levels[price].total_volume;
+uint32_t OrderBook::get_volume_at_price(Side side, uint32_t price) const {
+    return (side == Side::Bid) ? bid_levels[price].total_volume : ask_levels[price].total_volume;
 }
