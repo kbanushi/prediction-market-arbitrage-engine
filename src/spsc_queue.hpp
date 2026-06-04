@@ -12,7 +12,7 @@
 #endif
 
 template<typename T, size_t Capacity>
-class SCSPQueue{
+class SPSCQueue{
     static_assert((Capacity != 0) && ((Capacity & (Capacity - 1)) == 0), "Capacity must be power of 2");
 
     private:
