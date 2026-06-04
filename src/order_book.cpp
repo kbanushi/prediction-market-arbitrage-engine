@@ -157,6 +157,22 @@ void OrderBook::modify_order(uint64_t internal_id, uint32_t new_price, uint32_t 
     }
 }
 
+bool OrderBook::apply(const MarketEvent& event){
+    switch (event.type){
+        case EventType::Add:
+            insert_order(event.order_id, static_cast<char>(event.side), event.price, event.quantity);
+            return true;
+        case EventType::Cancel:
+            cancel_order(event.order_id);
+            return true;
+        case EventType::Modify:
+            modify_order(event.order_id, event.price, event.quantity);
+            return true;
+        default:
+            return false;
+    }
+}
+
 int32_t OrderBook::get_best_bid() const {
     return best_bid_price;
 }

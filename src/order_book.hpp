@@ -3,6 +3,7 @@
 #include <vector>
 #include <array>
 #include "ankerl_unordered_dense.hpp"
+#include "market_event.hpp"
 
 constexpr uint32_t MAX_PRICE_POINTS = 10000;
 
@@ -47,6 +48,7 @@ class OrderBook{
     void insert_order(uint64_t internal_id, char size, uint32_t price, uint32_t quantity);
     void cancel_order(uint64_t internal_id);
     void modify_order(uint64_t internal_id, uint32_t new_price, uint32_t new_quantity);
+    bool apply(const MarketEvent& event);
 
     [[nodiscard]] int32_t get_best_bid() const;
     [[nodiscard]] int32_t get_best_ask() const;

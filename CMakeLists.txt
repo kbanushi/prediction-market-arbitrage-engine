@@ -26,6 +26,7 @@ add_executable(PredictionMarketEngine
 target_include_directories(PredictionMarketEngine PRIVATE src)
 
 add_executable(engine_tests
+    tests/test_event_pipeline.cpp
     tests/test_spsc_queue.cpp
     tests/test_order_book.cpp
     tests/strategy_tests.cpp
