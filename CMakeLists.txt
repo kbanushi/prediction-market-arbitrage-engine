@@ -21,6 +21,7 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(PredictionMarketEngine
     src/main.cpp
     src/order_book.cpp
+    src/book_builder.cpp
 )
 
 target_include_directories(PredictionMarketEngine PRIVATE src)
@@ -30,7 +31,11 @@ add_executable(engine_tests
     tests/test_spsc_queue.cpp
     tests/test_order_book.cpp
     tests/strategy_tests.cpp
+    tests/test_order_book_apply.cpp
+    tests/test_book_builder.cpp
+    
     src/order_book.cpp
+    src/book_builder.cpp
 )
 
 target_include_directories(engine_tests PRIVATE src)
