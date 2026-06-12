@@ -1,156 +1,109 @@
-# Prediction Market Arbitrage Engine
+# prediction-market-arbitrage-engine
 
-A C++20 trading infrastructure project for prediction-market arbitrage, focused on building a fast, deterministic order book and strategy evaluation pipeline. The engine currently emphasizes cache-conscious data layout, preallocated storage, constant-time book mutations, and reproducible hot-path benchmarks.
+A C++20 market data and strategy evaluation engine for prediction markets. The project builds the infrastructure layer that sits between raw market data and strategy logic: normalized event ingestion, local book state reconstruction, and constraint-based arbitrage evaluation.
 
-## Overview
+This is not a live trading system. The goal is a realistic, deterministic, testable pipeline that could plausibly be extended toward one.
 
-This project is a work-in-progress implementation of a miniature prediction-market trading engine. The current system includes:
+---
 
-- A preallocated limit order book
-- Fixed price-level arrays
-- Intrusive index-based linked lists for per-price order queues
-- Dense order ID lookup
-- Constraint-based arbitrage evaluation
-- Catch2 unit tests
-- Synthetic hot-path microbenchmarks
+## Architecture
 
-The goal is to build a realistic trading-system foundation before adding more advanced components such as market data replay, OMS/order state management, concurrency, and non-blocking network I/O.
+Data flows through a fixed pipeline:
 
-## Architecture Highlights
-
-### Preallocated Hot Path
-
-The order book uses a `std::vector`-backed arena and recycles order slots through an internal free list. Once initialized with sufficient capacity, add/cancel/modify operations avoid `new`/`delete` allocations on the hot path.
-
-### Cache-Conscious Book Layout
-
-The book avoids node-heavy associative containers for price levels. Instead, it uses fixed-size price arrays and index-based linked lists to keep core book state compact and predictable in memory.
-
-Order ID lookup uses `ankerl::unordered_dense`, which provides a faster, more cache-friendly hash map than `std::unordered_map` in the current benchmark workload.
-
-### Constant-Time Book Mutations
-
-Critical book operations are designed around average-case constant-time behavior:
-
-- Add order
-- Cancel order by ID
-- Modify order quantity
-- Price-level volume lookup
-- Best bid/ask tracking
-
-Order cancellation and modification derive side and price from internal order state instead of trusting caller-provided metadata. This improves correctness by making the order book the source of truth for existing order metadata.
-
-### Order Struct and API Refactor
-
-The order book API was refactored so existing orders are cancelled and modified by `OrderId` instead of requiring callers to pass redundant side/price metadata.
-
-Before:
-
-```cpp
-cancel_order(order_id, side, price);
-modify_order(order_id, side, price, new_quantity);
+```
+Polymarket JSON → adapter → MarketEvent → SPSC queue → BookBuilder → OrderBook → Strategy
 ```
 
-After:
+**Polymarket adapter** translates raw `/book` snapshot JSON into normalized `MarketEvent` structs. It is the only place venue-specific formatting is handled. It also parses Polymarket's string-encoded decimal prices into fixed-point integers.
 
-```cpp
-cancel_order(order_id);
-modify_order(order_id, new_quantity);
-```
+**MarketEvent** is the engine's internal data format. Everything becomes a `MarketEvent` before entering the pipeline. This lets the same downstream path handle snapshots, WebSocket updates, replay files, and synthetic test events without modification.
 
-The `Order` struct now stores the side and price needed for book mutation. This reduces caller-side state duplication, prevents accidental mutation of the wrong price level, and reduced average hot-path latency by approximately 5 ns in local synthetic benchmarks.
+**SPSC queue** is the handoff between producer and consumer. The adapter produces events; the BookBuilder consumes them.
 
-### Constraint-Based Arbitrage Evaluation
+**BookBuilder** owns sequencing. It checks whether each incoming event is next in sequence, rejects duplicates, detects gaps, and drops unsupported event types. The OrderBook never receives an event that BookBuilder has not validated.
 
-The current strategy layer evaluates cross-market prediction constraints. It compares implied probabilities across related markets, estimates gross edge, subtracts fees, and computes executable size based on available top-of-book liquidity.
+**OrderBook** maintains aggregate price-level state. It stores bid and ask quantity by price level and tracks best bid/ask.
 
-## Current Status and Roadmap
+**Strategy** consumes reconstructed book state. It has no knowledge of JSON, HTTP, or anything external.
 
-This project is in active development. The core order book, memory-pool structure, basic strategy evaluation, tests, and synthetic benchmarks are implemented.
+---
 
-- [x] Phase 1: Core order book with preallocated storage, fixed price levels, dense ID lookup, and unit tests
-- [x] Phase 2: Constraint-based arbitrage evaluator with fee-adjusted edge calculation
-- [ ] Phase 3: Paper OMS for tracking submitted orders, fills, cancels, rejects, positions, and PnL
-- [ ] Phase 4: Market data replay engine for deterministic event-driven backtesting
-- [ ] Phase 5: SPSC ring buffers for inter-thread communication
-- [ ] Phase 6: Non-blocking network I/O for market data ingestion
-- [ ] Phase 7: Expanded benchmarks and profiling reports
+## Design Decisions
 
-## Hot-Path Microbenchmarks
+### Aggregate price-level book, not per-order
 
-Benchmarks were run locally on Apple Silicon M2 using Clang with release-mode optimization.
+The book exposes `set_level(side, price, quantity)` and `clear_level(side, price)` rather than `insert_order`, `cancel_order`, and `modify_order`. Polymarket's public book data is aggregate level data — individual order IDs are not in the feed. Modeling per-order state here would mean tracking things the data does not actually tell us. The aggregate model reflects what we receive.
 
-The benchmark initializes a synthetic order book with 20,000 active orders and executes 1,000,000 randomized order modifications using a lightweight Linear Congruential Generator.
+### Normalized events instead of direct JSON-to-book calls
 
-| Data Structure Strategy | Avg Latency per Update | Throughput |
-| :--- | :--- | :--- |
-| Dense map + memory pool + internal order metadata refactor | ~37 ns | ~26.8M updates/sec |
-| Dense map + preallocated memory pool | ~41 ns | ~24.3M updates/sec |
-| `std::unordered_map` baseline | ~67 ns | ~14.8M updates/sec |
+The adapter does not write directly into the OrderBook. It produces `MarketEvent` structs that move through the queue and BookBuilder first. The consequence is that the engine does not need to change to support replaying recorded events, running synthetic test scenarios, or eventually handling WebSocket deltas — those are all just different sources of the same event type.
 
-In this synthetic workload, the dense-map/preallocated design reduced average update latency by roughly 39% compared with the `std::unordered_map` baseline.
+### BookBuilder owns sequencing, OrderBook owns state
 
-A later order-book API refactor, which moved side/price ownership into the internal `Order` struct and simplified cancel/modify calls to operate by `OrderId`, further reduced average hot-path latency by approximately 5 ns in local synthetic benchmarks.
+Sequence validation — what is next, what is a duplicate, what is a gap — is a market data pipeline concern. Book mutation is a state concern. Mixing them makes both harder to test in isolation and harder to reason about when something goes wrong. BookBuilder handles one; OrderBook handles the other.
 
-> Note: These are local synthetic microbenchmarks, not production exchange benchmarks. Results may vary by machine, compiler, workload, and build configuration.
+### Fixed-point integers for prices
 
-## Build Instructions
+Prices are stored as scaled integers: `1.0 → 10000`, `0.52 → 5200`. Floating-point arithmetic is not used on the pricing path. This avoids accumulating rounding error across operations and makes equality comparisons between price levels safe.
 
-### Clone the repository
+### Namespace for the adapter, not a virtual interface
 
-```bash
-git clone https://github.com/kbanushi/prediction-market-arbitrage-engine.git
-cd prediction-market-arbitrage-engine
-```
+The Polymarket adapter is a namespace of stateless translation functions (`polymarket::parse_book_snapshot`) rather than a class implementing some `IMarketDataAdapter` interface. A virtual interface makes sense when there are multiple runtime-selectable adapters. There is currently one venue. The abstraction belongs when there is a second adapter to justify it.
 
-### Fetch external dependencies
+---
 
-This project currently uses `ankerl::unordered_dense` for dense hash-map storage and Catch2 for unit tests.
+## What's Implemented
 
-```bash
-curl -L -o src/ankerl_unordered_dense.hpp \
-  https://raw.githubusercontent.com/martinus/unordered_dense/main/include/ankerl/unordered_dense.h
+- Aggregate price-level order book with best bid/ask tracking
+- `MarketEvent` model covering snapshot begin/end, level set, and level clear events
+- `BookBuilder` with sequence validation, duplicate detection, and gap detection
+- SPSC ring buffer for producer/consumer event handoff
+- Polymarket `/book` snapshot adapter with fixed-point decimal parsing
+- Constraint-based arbitrage strategy: detects implication-chain violations across related markets (e.g. `P(BTC > $100k) > P(BTC > $90k)`), computes fee-adjusted edge, and estimates executable size from top-of-book liquidity
+- Catch2 unit tests covering each component in isolation and the full adapter → queue → BookBuilder → OrderBook → Strategy pipeline
 
-curl -L -o src/stl.h \
-  https://raw.githubusercontent.com/martinus/unordered_dense/main/include/ankerl/stl.h
-```
+The integration tests are the more meaningful ones. They verify that data moves through the actual architecture end-to-end and produces correct output, not just that individual functions behave in isolation.
 
-Catch2 is pulled through CMake `FetchContent`.
+---
 
-### Build
+## What's Next
+
+**Replay harness.** The immediate next step is a mechanism to record a stream of normalized `MarketEvent`s and replay them deterministically, verifying that the engine reconstructs the same book state and produces the same strategy decisions from the same input. This is the prerequisite for any meaningful backtesting or strategy evaluation over historical data.
+
+After that:
+
+- Paper OMS for tracking submitted orders, fills, cancels, and running position/PnL
+- Benchmarks for the event pipeline with reproducible methodology
+- Non-blocking network I/O for live Polymarket data ingestion
+
+---
+
+## Build
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ```
 
-### Run tests
+If `nlohmann/json.hpp` is missing:
 
 ```bash
-ctest --test-dir build --output-on-failure
+mkdir -p third_party/nlohmann
+curl -L https://raw.githubusercontent.com/nlohmann/json/v3.11.3/single_include/nlohmann/json.hpp \
+  -o third_party/nlohmann/json.hpp
 ```
 
-### Run benchmark
+## Tests
 
 ```bash
-./build/PredictionMarketEngine
+./build/engine_tests
 ```
 
-## Testing
+Run by component:
 
-The test suite currently covers:
-
-- Order insertion and cancellation
-- Best bid/ask tracking
-- Price-level volume aggregation
-- Memory pool exhaustion and recycling
-- Safe handling of invalid/phantom cancels
-- Strategy edge detection
-- Fee-adjusted arbitrage calculations
-- Output buffer bounds
-
-## Project Direction
-
-The next major milestone is adding a paper OMS. This will separate public market state from internal order state and allow the engine to track submitted orders, acknowledgements, partial fills, cancels, rejects, positions, and realized/unrealized PnL.
-
-Longer term, the project is intended to evolve into a deterministic event-driven trading simulator with market data replay, strategy evaluation, risk checks, and benchmarkable execution paths.
+```bash
+./build/engine_tests "[order_book]"
+./build/engine_tests "[book_builder]"
+./build/engine_tests "[spsc_queue]"
+./build/engine_tests "[polymarket_adapter]"
+```
