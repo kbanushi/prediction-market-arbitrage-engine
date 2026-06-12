@@ -21,3 +21,5 @@ engine_tests
 
 src/ankerl_unordered_dense.hpp
 src/stl.h
+
+third_party/*
