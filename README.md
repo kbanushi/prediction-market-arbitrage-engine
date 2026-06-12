@@ -1,8 +1,8 @@
 # prediction-market-arbitrage-engine
 
-A C++20 market data and strategy evaluation engine for prediction markets. The project builds the infrastructure layer that sits between raw market data and strategy logic: normalized event ingestion, local book state reconstruction, and constraint-based arbitrage evaluation.
+A C++20 market data and strategy evaluation engine for prediction markets. The project builds the infrastructure layer between raw market data and strategy logic: normalized event ingestion, deterministic local book reconstruction, and constraint-based arbitrage evaluation.
 
-This is not a live trading system. The goal is a realistic, deterministic, testable pipeline that could plausibly be extended toward one.
+The current focus is deterministic market-state reconstruction and strategy evaluation, with the architecture designed to support replay, simulation, and eventual live ingestion.
 
 ---
 
@@ -20,7 +20,7 @@ Polymarket JSON → adapter → MarketEvent → SPSC queue → BookBuilder → O
 
 **SPSC queue** is the handoff between producer and consumer. The adapter produces events; the BookBuilder consumes them.
 
-**BookBuilder** owns sequencing. It checks whether each incoming event is next in sequence, rejects duplicates, detects gaps, and drops unsupported event types. The OrderBook never receives an event that BookBuilder has not validated.
+**BookBuilder** owns sequencing. It checks whether each incoming event is next in sequence, rejects duplicates, detects gaps, and drops unsupported event types. In the normal pipeline, the OrderBook receives events only after BookBuilder validates sequencing and event support.
 
 **OrderBook** maintains aggregate price-level state. It stores bid and ask quantity by price level and tracks best bid/ask.
 
@@ -62,7 +62,7 @@ The Polymarket adapter is a namespace of stateless translation functions (`polym
 - Constraint-based arbitrage strategy: detects implication-chain violations across related markets (e.g. `P(BTC > $100k) > P(BTC > $90k)`), computes fee-adjusted edge, and estimates executable size from top-of-book liquidity
 - Catch2 unit tests covering each component in isolation and the full adapter → queue → BookBuilder → OrderBook → Strategy pipeline
 
-The integration tests are the more meaningful ones. They verify that data moves through the actual architecture end-to-end and produces correct output, not just that individual functions behave in isolation.
+The integration tests verify that components work together through the same path used by the engine, not just as isolated functions. They verify that data moves through the actual architecture end-to-end and produces correct output, not just that individual functions behave in isolation.
 
 ---
 
@@ -75,6 +75,7 @@ After that:
 - Paper OMS for tracking submitted orders, fills, cancels, and running position/PnL
 - Benchmarks for the event pipeline with reproducible methodology
 - Non-blocking network I/O for live Polymarket data ingestion
+- Optional live market data ingestion after replay and simulation paths are validated
 
 ---
 
