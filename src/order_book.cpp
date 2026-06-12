@@ -105,11 +105,9 @@ uint32_t OrderBook::get_volume_at_price(Side side, uint32_t price) const {
 }
 
 void OrderBook::clear(){
-    for (size_t i = MAX_PRICE_POINTS - 1; i >= 0; i--){
-        bid_levels[i] = 0;
-        ask_levels[i] = 0;
-    }
-
+    bid_levels.fill(0);
+    ask_levels.fill(0);
+    
     best_ask_price = -1;
-    best_ask_price = -1;
+    best_bid_price = -1;
 }

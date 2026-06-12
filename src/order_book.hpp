@@ -8,8 +8,8 @@ constexpr uint32_t MAX_PRICE_POINTS = 10000;
 
 class OrderBook{
     private:
-    std::array<uint32_t, MAX_PRICE_POINTS> bid_levels;
-    std::array<uint32_t, MAX_PRICE_POINTS> ask_levels;
+    std::array<uint32_t, MAX_PRICE_POINTS> bid_levels{};
+    std::array<uint32_t, MAX_PRICE_POINTS> ask_levels{};
 
     int32_t best_bid_price = -1;
     int32_t best_ask_price = -1;
