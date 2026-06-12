@@ -1,5 +1,7 @@
 #include "order_book.hpp"
 
+#include <cstddef>
+
 void OrderBook::set_level(Side side, uint32_t price, uint32_t quantity){
     if (price >= MAX_PRICE_POINTS) [[unlikely]] {
         throw std::runtime_error("Fatal: Price greater than max price points");

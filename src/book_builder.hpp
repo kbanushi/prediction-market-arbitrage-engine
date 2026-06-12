@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 #include "market_event.hpp"
@@ -39,7 +40,7 @@ class BookBuilder{
         BookBuildResult process_event(const MarketEvent& event);
         uint64_t last_sequence_number() const;
 
-        template<size_t Capacity>
+        template<std::size_t Capacity>
         BookDrainResult drain(SPSCQueue<MarketEvent, Capacity>& queue){
             std::size_t events_consumed = 0;
             std::size_t events_applied = 0;
