@@ -1,5 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstdint>
+
 #include "../src/book_builder.hpp"
 #include "../src/market_event.hpp"
 #include "../src/order_book.hpp"
@@ -9,7 +11,6 @@ namespace {
 
 MarketEvent make_event(
     uint64_t sequence_number,
-    uint64_t order_id,
     EventType type,
     Side side,
     uint32_t price,
@@ -18,25 +19,24 @@ MarketEvent make_event(
     MarketEvent event{};
     event.sequence_number = sequence_number;
     event.exchange_timestamp_ns = 0;
-    event.order_id = order_id;
+    event.receive_timestamp_ns = 0;
     event.market_id = 1;
-    event.price = price;
-    event.quantity = quantity;
     event.type = type;
     event.side = side;
+    event.price = price;
+    event.quantity = quantity;
     return event;
 }
 
 } // namespace
 
-TEST_CASE("BookBuilder applies ordered event to order book", "[book_builder][process_event]") {
-    OrderBook book(1024);
+TEST_CASE("BookBuilder applies ordered level event to order book", "[book_builder][process_event]") {
+    OrderBook book;
     BookBuilder builder(book);
 
     MarketEvent event = make_event(
         1,
-        1001,
-        EventType::Add,
+        EventType::LevelSet,
         Side::Bid,
         5000,
         10
@@ -54,20 +54,27 @@ TEST_CASE("BookBuilder applies ordered event to order book", "[book_builder][pro
 }
 
 TEST_CASE("BookBuilder detects duplicate event without mutating sequence state", "[book_builder][process_event]") {
-    OrderBook book(1024);
+    OrderBook book;
     BookBuilder builder(book);
 
-    MarketEvent event = make_event(
+    MarketEvent first_event = make_event(
         1,
-        1001,
-        EventType::Add,
+        EventType::LevelSet,
         Side::Bid,
         5000,
         10
     );
 
-    BookBuildResult first = builder.process_event(event);
-    BookBuildResult duplicate = builder.process_event(event);
+    MarketEvent duplicate_event = make_event(
+        1,
+        EventType::LevelSet,
+        Side::Bid,
+        5000,
+        999
+    );
+
+    BookBuildResult first = builder.process_event(first_event);
+    BookBuildResult duplicate = builder.process_event(duplicate_event);
 
     REQUIRE(first.status == BookBuildStatus::Applied);
     REQUIRE(duplicate.status == BookBuildStatus::Duplicate);
@@ -81,13 +88,12 @@ TEST_CASE("BookBuilder detects duplicate event without mutating sequence state",
 }
 
 TEST_CASE("BookBuilder detects sequence gap and does not apply event", "[book_builder][process_event]") {
-    OrderBook book(1024);
+    OrderBook book;
     BookBuilder builder(book);
 
     MarketEvent event = make_event(
         2,
-        1001,
-        EventType::Add,
+        EventType::LevelSet,
         Side::Bid,
         5000,
         10
@@ -105,12 +111,11 @@ TEST_CASE("BookBuilder detects sequence gap and does not apply event", "[book_bu
 }
 
 TEST_CASE("BookBuilder does not advance sequence for unsupported event", "[book_builder][process_event]") {
-    OrderBook book(1024);
+    OrderBook book;
     BookBuilder builder(book);
 
     MarketEvent event = make_event(
         1,
-        1001,
         EventType::Trade,
         Side::Bid,
         5000,
@@ -128,36 +133,69 @@ TEST_CASE("BookBuilder does not advance sequence for unsupported event", "[book_
     REQUIRE(book.get_best_ask() == -1);
 }
 
-TEST_CASE("BookBuilder applies ordered add modify cancel sequence", "[book_builder][process_event]") {
-    OrderBook book(1024);
+TEST_CASE("BookBuilder applies ordered level set and clear sequence", "[book_builder][process_event]") {
+    OrderBook book;
     BookBuilder builder(book);
 
     REQUIRE(builder.process_event(
-        make_event(1, 1001, EventType::Add, Side::Bid, 5000, 10)
+        make_event(1, EventType::LevelSet, Side::Bid, 5000, 10)
     ).status == BookBuildStatus::Applied);
 
     REQUIRE(builder.process_event(
-        make_event(2, 1001, EventType::Modify, Side::Bid, 5050, 15)
+        make_event(2, EventType::LevelSet, Side::Bid, 5050, 15)
     ).status == BookBuildStatus::Applied);
 
     REQUIRE(builder.process_event(
-        make_event(3, 1001, EventType::Cancel, Side::Bid, 0, 0)
+        make_event(3, EventType::LevelClear, Side::Bid, 5050, 0)
     ).status == BookBuildStatus::Applied);
 
     REQUIRE(builder.last_sequence_number() == 3);
-    REQUIRE(book.get_best_bid() == -1);
-    REQUIRE(book.get_volume_at_price(Side::Bid, 5000) == 0);
+    REQUIRE(book.get_best_bid() == 5000);
+    REQUIRE(book.get_volume_at_price(Side::Bid, 5000) == 10);
     REQUIRE(book.get_volume_at_price(Side::Bid, 5050) == 0);
 }
 
+TEST_CASE("BookBuilder applies snapshot lifecycle events", "[book_builder][process_event]") {
+    OrderBook book;
+    BookBuilder builder(book);
+
+    book.set_level(Side::Bid, 4900, 100);
+    book.set_level(Side::Ask, 5100, 100);
+
+    REQUIRE(builder.process_event(
+        make_event(1, EventType::SnapshotBegin, Side::Bid, 0, 0)
+    ).status == BookBuildStatus::Applied);
+
+    REQUIRE(book.get_best_bid() == -1);
+    REQUIRE(book.get_best_ask() == -1);
+
+    REQUIRE(builder.process_event(
+        make_event(2, EventType::SnapshotLevel, Side::Bid, 5000, 10)
+    ).status == BookBuildStatus::Applied);
+
+    REQUIRE(builder.process_event(
+        make_event(3, EventType::SnapshotLevel, Side::Ask, 5100, 20)
+    ).status == BookBuildStatus::Applied);
+
+    REQUIRE(builder.process_event(
+        make_event(4, EventType::SnapshotEnd, Side::Bid, 0, 0)
+    ).status == BookBuildStatus::Applied);
+
+    REQUIRE(builder.last_sequence_number() == 4);
+    REQUIRE(book.get_best_bid() == 5000);
+    REQUIRE(book.get_best_ask() == 5100);
+    REQUIRE(book.get_volume_at_price(Side::Bid, 5000) == 10);
+    REQUIRE(book.get_volume_at_price(Side::Ask, 5100) == 20);
+}
+
 TEST_CASE("BookBuilder drains ordered events from queue", "[book_builder][drain]") {
-    OrderBook book(1024);
+    OrderBook book;
     BookBuilder builder(book);
     SPSCQueue<MarketEvent, 1024> queue;
 
-    REQUIRE(queue.push(make_event(1, 1001, EventType::Add, Side::Bid, 5000, 10)));
-    REQUIRE(queue.push(make_event(2, 1002, EventType::Add, Side::Ask, 5100, 20)));
-    REQUIRE(queue.push(make_event(3, 1001, EventType::Modify, Side::Bid, 5050, 15)));
+    REQUIRE(queue.push(make_event(1, EventType::LevelSet, Side::Bid, 5000, 10)));
+    REQUIRE(queue.push(make_event(2, EventType::LevelSet, Side::Ask, 5100, 20)));
+    REQUIRE(queue.push(make_event(3, EventType::LevelSet, Side::Bid, 5050, 15)));
 
     BookDrainResult result = builder.drain(queue);
 
@@ -173,13 +211,13 @@ TEST_CASE("BookBuilder drains ordered events from queue", "[book_builder][drain]
 }
 
 TEST_CASE("BookBuilder drain ignores duplicate events and continues", "[book_builder][drain]") {
-    OrderBook book(1024);
+    OrderBook book;
     BookBuilder builder(book);
     SPSCQueue<MarketEvent, 1024> queue;
 
-    REQUIRE(queue.push(make_event(1, 1001, EventType::Add, Side::Bid, 5000, 10)));
-    REQUIRE(queue.push(make_event(1, 1001, EventType::Add, Side::Bid, 5000, 10)));
-    REQUIRE(queue.push(make_event(2, 1002, EventType::Add, Side::Ask, 5100, 20)));
+    REQUIRE(queue.push(make_event(1, EventType::LevelSet, Side::Bid, 5000, 10)));
+    REQUIRE(queue.push(make_event(1, EventType::LevelSet, Side::Bid, 5000, 999)));
+    REQUIRE(queue.push(make_event(2, EventType::LevelSet, Side::Ask, 5100, 20)));
 
     BookDrainResult result = builder.drain(queue);
 
@@ -195,12 +233,12 @@ TEST_CASE("BookBuilder drain ignores duplicate events and continues", "[book_bui
 }
 
 TEST_CASE("BookBuilder drain stops on sequence gap", "[book_builder][drain]") {
-    OrderBook book(1024);
+    OrderBook book;
     BookBuilder builder(book);
     SPSCQueue<MarketEvent, 1024> queue;
 
-    REQUIRE(queue.push(make_event(1, 1001, EventType::Add, Side::Bid, 5000, 10)));
-    REQUIRE(queue.push(make_event(3, 1002, EventType::Add, Side::Ask, 5100, 20)));
+    REQUIRE(queue.push(make_event(1, EventType::LevelSet, Side::Bid, 5000, 10)));
+    REQUIRE(queue.push(make_event(3, EventType::LevelSet, Side::Ask, 5100, 20)));
 
     BookDrainResult result = builder.drain(queue);
 
@@ -218,12 +256,12 @@ TEST_CASE("BookBuilder drain stops on sequence gap", "[book_builder][drain]") {
 }
 
 TEST_CASE("BookBuilder drain stops on unsupported event", "[book_builder][drain]") {
-    OrderBook book(1024);
+    OrderBook book;
     BookBuilder builder(book);
     SPSCQueue<MarketEvent, 1024> queue;
 
-    REQUIRE(queue.push(make_event(1, 1001, EventType::Add, Side::Bid, 5000, 10)));
-    REQUIRE(queue.push(make_event(2, 1002, EventType::Trade, Side::Ask, 5100, 5)));
+    REQUIRE(queue.push(make_event(1, EventType::LevelSet, Side::Bid, 5000, 10)));
+    REQUIRE(queue.push(make_event(2, EventType::Trade, Side::Ask, 5100, 5)));
 
     BookDrainResult result = builder.drain(queue);
 
@@ -239,7 +277,7 @@ TEST_CASE("BookBuilder drain stops on unsupported event", "[book_builder][drain]
 }
 
 TEST_CASE("BookBuilder drain on empty queue returns drained with zero counts", "[book_builder][drain]") {
-    OrderBook book(1024);
+    OrderBook book;
     BookBuilder builder(book);
     SPSCQueue<MarketEvent, 1024> queue;
 
@@ -257,11 +295,11 @@ TEST_CASE("BookBuilder drain on empty queue returns drained with zero counts", "
 }
 
 TEST_CASE("BookBuilder drain can be called repeatedly", "[book_builder][drain]") {
-    OrderBook book(1024);
+    OrderBook book;
     BookBuilder builder(book);
     SPSCQueue<MarketEvent, 1024> queue;
 
-    REQUIRE(queue.push(make_event(1, 1001, EventType::Add, Side::Bid, 5000, 10)));
+    REQUIRE(queue.push(make_event(1, EventType::LevelSet, Side::Bid, 5000, 10)));
 
     BookDrainResult first = builder.drain(queue);
 
@@ -270,8 +308,8 @@ TEST_CASE("BookBuilder drain can be called repeatedly", "[book_builder][drain]")
     REQUIRE(first.events_applied == 1);
     REQUIRE(builder.last_sequence_number() == 1);
 
-    REQUIRE(queue.push(make_event(2, 1002, EventType::Add, Side::Ask, 5100, 20)));
-    REQUIRE(queue.push(make_event(3, 1001, EventType::Modify, Side::Bid, 5050, 15)));
+    REQUIRE(queue.push(make_event(2, EventType::LevelSet, Side::Ask, 5100, 20)));
+    REQUIRE(queue.push(make_event(3, EventType::LevelSet, Side::Bid, 5050, 15)));
 
     BookDrainResult second = builder.drain(queue);
 
