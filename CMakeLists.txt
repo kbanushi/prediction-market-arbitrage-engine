@@ -22,9 +22,14 @@ add_executable(PredictionMarketEngine
     src/main.cpp
     src/order_book.cpp
     src/book_builder.cpp
+    src/polymarket_adapter.cpp
 )
 
-target_include_directories(PredictionMarketEngine PRIVATE src)
+target_include_directories(PredictionMarketEngine
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+)
 
 add_executable(engine_tests
     tests/test_event_pipeline.cpp
@@ -33,10 +38,17 @@ add_executable(engine_tests
     tests/strategy_tests.cpp
     tests/test_order_book_apply.cpp
     tests/test_book_builder.cpp
-    
+    tests/test_polymarket_adapter.cpp
+
     src/order_book.cpp
     src/book_builder.cpp
+    src/polymarket_adapter.cpp
 )
 
-target_include_directories(engine_tests PRIVATE src)
+target_include_directories(engine_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+)
+
 target_link_libraries(engine_tests PRIVATE Catch2::Catch2WithMain)
