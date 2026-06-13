@@ -24,6 +24,7 @@ add_executable(PredictionMarketEngine
     src/book_builder.cpp
     src/polymarket_adapter.cpp
     src/paper_oms.cpp
+    src/order_intent_builder.cpp
 )
 
 target_include_directories(PredictionMarketEngine
@@ -41,11 +42,13 @@ add_executable(engine_tests
     tests/test_book_builder.cpp
     tests/test_polymarket_adapter.cpp
     tests/test_paper_oms.cpp
+    tests/test_order_intent_builder.cpp
 
     src/order_book.cpp
     src/book_builder.cpp
     src/polymarket_adapter.cpp
     src/paper_oms.cpp
+    src/order_intent_builder.cpp
 )
 
 target_include_directories(engine_tests
