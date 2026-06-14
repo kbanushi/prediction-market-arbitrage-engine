@@ -4,7 +4,7 @@
 #include "market_event.hpp"
 
 
-constexpr uint32_t MAX_PRICE_POINTS = 10000;
+constexpr uint32_t MAX_PRICE_POINTS = 10001;
 
 class OrderBook{
     private:
