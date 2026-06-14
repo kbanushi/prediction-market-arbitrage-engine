@@ -18,11 +18,11 @@ private:
 public:
     Strategy() = default;
 
-    void configure_market(uint32_t internal_index, uint32_t external_id, uint32_t fee_rate, OrderBook* book){
-        if (internal_index >= MAX_STRATEGY_MARKETS)
+    void configure_market(uint32_t internal_market_id, uint32_t fee_rate, OrderBook* book){
+        if (internal_market_id >= MAX_STRATEGY_MARKETS)
             throw std::runtime_error("Fatal Configuration: Max strategies exceeded.");
         
-        market_pool[internal_index] = Market{book, external_id, fee_rate,};
+        market_pool[internal_market_id] = Market{fee_rate, book};
     }
 
     void configure_constraint(uint32_t strong_index, uint32_t weak_index){
@@ -56,8 +56,8 @@ public:
                     break;
 
                 Opportunity& opportunity = output_buffer[opportunities_found];
-                opportunity.buy_market_id = weak_market.id;
-                opportunity.sell_market_id = strong_market.id;
+                opportunity.buy_market_id = constraint.weak_market_index;
+                opportunity.sell_market_id = constraint.strong_market_index;
                 opportunity.buy_price = weak_ask;
                 opportunity.sell_price = strong_bid;
                 opportunity.gross_edge = gross_edge;

@@ -14,8 +14,8 @@ TEST_CASE("Strategy validates implication arbitrage and calculates max_size", "[
 
     Strategy engine;
 
-    engine.configure_market(0, 9000, 0, &book_90k);
-    engine.configure_market(1, 10000, 0, &book_100k);
+    engine.configure_market(0, 0, &book_90k);
+    engine.configure_market(1, 0, &book_100k);
     engine.configure_constraint(1, 0);
 
     std::array<Opportunity, 10> output_buffer{};
@@ -29,8 +29,8 @@ TEST_CASE("Strategy validates implication arbitrage and calculates max_size", "[
 
     const auto& opp = output_buffer[0];
 
-    REQUIRE(opp.buy_market_id == 9000);
-    REQUIRE(opp.sell_market_id == 10000);
+    REQUIRE(opp.buy_market_id == 0);
+    REQUIRE(opp.sell_market_id == 1);
 
     REQUIRE(opp.buy_price == 500);
     REQUIRE(opp.sell_price == 600);
@@ -49,8 +49,8 @@ TEST_CASE("Strategy respects output buffer boundaries", "[strategy]") {
 
     Strategy engine;
 
-    engine.configure_market(0, 9000, 0, &book_90k);
-    engine.configure_market(1, 10000, 0, &book_100k);
+    engine.configure_market(0, 0, &book_90k);
+    engine.configure_market(1, 0, &book_100k);
     engine.configure_constraint(1, 0);
 
     std::array<Opportunity, 0> tiny_buffer{};

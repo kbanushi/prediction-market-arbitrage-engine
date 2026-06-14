@@ -8,9 +8,8 @@ enum class Side : char {
 };
 
 struct Market{
+    uint32_t fee_rate = 0;
     OrderBook* book = nullptr;
-    uint32_t id;
-    uint32_t fee_rate;
 };
 
 struct Constraint{

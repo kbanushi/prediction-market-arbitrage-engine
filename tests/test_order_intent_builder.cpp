@@ -8,8 +8,8 @@ namespace {
 
 Opportunity make_opportunity() {
     Opportunity opportunity{};
-    opportunity.buy_market_id = 9000;
-    opportunity.sell_market_id = 10000;
+    opportunity.buy_market_id = 0;
+    opportunity.sell_market_id = 1;
     opportunity.buy_price = 5000;
     opportunity.sell_price = 6000;
     opportunity.gross_edge = 1000;
