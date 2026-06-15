@@ -21,6 +21,7 @@ class PaperOMS{
         uint32_t order_count() const;
         uint64_t next_order_id() const;
 
+        void reset();
     private:
         PaperOrder* find_order(uint64_t order_id);
         static bool is_terminal(OrderStatus status);

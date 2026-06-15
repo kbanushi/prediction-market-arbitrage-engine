@@ -104,3 +104,8 @@ PaperOrder* PaperOMS::find_order(uint64_t order_id) {
 bool PaperOMS::is_terminal(OrderStatus status){
     return status == OrderStatus::Filled || status == OrderStatus::Cancelled || status == OrderStatus::Rejected;
 }
+
+void PaperOMS::reset(){
+    order_count_ = 0;
+    next_order_id_ = 1;
+}

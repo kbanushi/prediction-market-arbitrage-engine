@@ -324,3 +324,26 @@ TEST_CASE("PaperOMS get_order returns nullptr for missing order", "[paper_oms]")
 
     REQUIRE(order == nullptr);
 }
+
+TEST_CASE("PaperOMS reset clears active orders", "[paper_oms]") {
+    PaperOMS oms;
+
+    OrderIntent intent{};
+    intent.intent_id = 1;
+    intent.internal_market_id = 0;
+    intent.price = 5000;
+    intent.quantity = 10;
+    intent.side = TradeSide::Buy;
+
+    SubmitResult result = oms.submit_order(intent);
+    REQUIRE(result.status == SubmitStatus::Accepted);
+    REQUIRE(oms.order_count() == 1);
+
+    oms.reset();
+
+    REQUIRE(oms.order_count() == 0);
+
+    SubmitResult next = oms.submit_order(intent);
+    REQUIRE(next.status == SubmitStatus::Accepted);
+    REQUIRE(next.order_id == 1);
+}
