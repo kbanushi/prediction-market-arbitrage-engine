@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto -DNDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 
 include(FetchContent)
@@ -16,16 +16,30 @@ FetchContent_Declare(
     GIT_TAG v3.4.0
 )
 
+FetchContent_Declare(
+    benchmark
+    GIT_REPOSITORY https://github.com/google/benchmark.git
+    GIT_TAG v1.8.3
+)
+
+set(BENCHMARK_ENABLE_TESTING OFF)
+set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
+
 FetchContent_MakeAvailable(Catch2)
+FetchContent_MakeAvailable(benchmark)
+
+set(ENGINE_CORE_SOURCES
+src/order_book.cpp
+src/book_builder.cpp
+src/polymarket_adapter.cpp
+src/paper_oms.cpp
+src/order_intent_builder.cpp
+src/risk_manager.cpp
+)
 
 add_executable(PredictionMarketEngine
     src/main.cpp
-    src/order_book.cpp
-    src/book_builder.cpp
-    src/polymarket_adapter.cpp
-    src/paper_oms.cpp
-    src/order_intent_builder.cpp
-    src/risk_manager.cpp
+    ${ENGINE_CORE_SOURCES}
 )
 
 target_include_directories(PredictionMarketEngine
@@ -47,13 +61,7 @@ add_executable(engine_tests
     tests/test_risk_manager.cpp
     tests/test_trading_loop_integration.cpp
     tests/test_polymarket_fixture_reconstruction.cpp
-
-    src/order_book.cpp
-    src/book_builder.cpp
-    src/polymarket_adapter.cpp
-    src/paper_oms.cpp
-    src/order_intent_builder.cpp
-    src/risk_manager.cpp
+    ${ENGINE_CORE_SOURCES}
 )
 
 target_include_directories(engine_tests
@@ -62,4 +70,23 @@ target_include_directories(engine_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 
-target_link_libraries(engine_tests PRIVATE Catch2::Catch2WithMain)
+target_link_libraries(engine_tests
+    PRIVATE
+        Catch2::Catch2WithMain
+)
+
+add_executable(engine_benchmarks
+    benchmarks/benchmark_engine.cpp
+    ${ENGINE_CORE_SOURCES}
+)
+
+target_include_directories(engine_benchmarks
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+)
+
+target_link_libraries(engine_benchmarks
+    PRIVATE
+        benchmark::benchmark
+)

@@ -1,25 +1,43 @@
+# Build directories
 build/
-.vscode/
-.env
-keys/
+build-*/
+build-profile/
 
+# CMake generated files
 CMakeCache.txt
 CMakeFiles/
 CMakeScripts/
 Makefile
 cmake_install.cmake
-
+compile_commands.json
 _deps/
 
+# Local binaries
 PredictionMarketEngine
 engine_tests
+engine_benchmarks
 
-.DS_Store
-
+# IDE / OS
 .vscode/
 .idea/
+.DS_Store
 
+# Local secrets
+.env
+keys/
+
+# Local benchmark/profiling scratch output
+benchmark_results.json
+
+# Flame graph tooling and raw profiling artifacts
+tools/
+docs/flamegraphs/*.perf
+docs/flamegraphs/*.folded
+docs/flamegraphs/*.sample.txt
+docs/flamegraphs/*.trace
+docs/flamegraphs/*.stacks
+
+# Vendored/local headers not committed
+third_party/*
 src/ankerl_unordered_dense.hpp
 src/stl.h
-
-third_party/*
