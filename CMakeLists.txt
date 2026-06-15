@@ -45,6 +45,8 @@ add_executable(engine_tests
     tests/test_paper_oms.cpp
     tests/test_order_intent_builder.cpp
     tests/test_risk_manager.cpp
+    tests/test_trading_loop_integration.cpp
+    tests/test_polymarket_fixture_reconstruction.cpp
 
     src/order_book.cpp
     src/book_builder.cpp

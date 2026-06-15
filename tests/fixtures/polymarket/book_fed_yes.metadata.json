@@ -1,0 +1,28 @@
+{
+  "accepting_orders": true,
+  "best_ask_from_gamma": 0.996,
+  "best_bid_from_gamma": 0.995,
+  "book_ask_levels": 4,
+  "book_asset_id": "30767812841387255642892182147223249245545002662653079696958384408588201824258",
+  "book_bid_levels": 112,
+  "book_market": "0xde04b189b3f19eaccda02529a3ea67abfc46bff5c0c8fc42d8a2d0ed7b8f0d41",
+  "book_timestamp": "1781483924390",
+  "clob_token_ids": [
+    "30767812841387255642892182147223249245545002662653079696958384408588201824258",
+    "40302938956091099752849867077837976978448552504757012372843872340644441002059"
+  ],
+  "condition_id": "0xde04b189b3f19eaccda02529a3ea67abfc46bff5c0c8fc42d8a2d0ed7b8f0d41",
+  "enable_order_book": true,
+  "event_id": "101772",
+  "event_slug": "fed-decision-in-june-825",
+  "event_title": "Fed Decision in June?",
+  "market_id": "906974",
+  "market_question": "Will there be no change in Fed interest rates after the June 2026 meeting?",
+  "outcome": "Yes",
+  "outcome_index": 0,
+  "outcomes": [
+    "Yes",
+    "No"
+  ],
+  "selected_token_id": "30767812841387255642892182147223249245545002662653079696958384408588201824258"
+}
